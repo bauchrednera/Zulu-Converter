@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Zulu (UTC) & US Time Zones — Live + Converter</title>
 <style>
   :root{
@@ -10,28 +10,33 @@
     --bg:#f7f9fc; --card:#ffffff; --line:#e4e9f2; --muted:#5c6b82;
     --radius:12px; --shadow:0 2px 6px rgba(0,0,0,0.06);
   }
+  html{ -webkit-text-size-adjust: 100%; }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1100px;margin:0 auto;padding:28px}
-  h1{font-size:clamp(20px,3vw,28px);margin:0 0 16px 0;color:var(--navy);}
-  h2{font-size:clamp(16px,2.4vw,22px);margin:24px 0 12px;color:var(--navy)}
-  p{color:var(--muted);margin:0 0 16px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-  .card{background:var(--card);border-radius:var(--radius);padding:16px;border:1px solid var(--line);box-shadow:var(--shadow)}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px; display:flex; flex-direction:column; gap:16px}
+  h1{font-size:clamp(20px,3vw,28px);margin:0 0 8px 0;color:var(--navy);}
+  h2{font-size:clamp(16px,2.4vw,22px);margin:8px 0 8px;color:var(--navy)}
+  p{color:var(--muted);margin:0 0 8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .card{background:var(--card);border-radius:var(--radius);padding:14px;border:1px solid var(--line);box-shadow:var(--shadow)}
   .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
   .label{font-weight:700;}
   .time{font-variant-numeric:tabular-nums;font-size:20px}
   .sub{color:var(--muted);font-size:12px}
   .inputs{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
   input[type="text"]{
-    background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:220px
+    background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:220px;
+    font-size:16px; /* Prevent iOS auto-zoom */
   }
   input[type="text"]:focus{border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,174,239,0.18); outline:none}
   .stack{display:flex;flex-direction:column;gap:6px}
   .hint{font-size:12px;color:var(--muted)}
   .toggle{display:flex;align-items:center;gap:8px;margin-left:auto}
-  .toggle input{width:18px;height:18px}
-  button{background:var(--blue);color:#002746;border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .toggle input{width:20px;height:20px}
+  button{
+    background:var(--blue);color:#002746;border:0;border-radius:8px;padding:12px 16px;font-weight:700;cursor:pointer;
+    font-size:16px; /* Larger tap target, avoids zoom on focusable controls */
+  }
   table{width:100%;border-collapse:collapse;margin-top:8px}
   thead th{background:#f1f5fb;color:var(--muted);padding:10px;border-bottom:1px solid var(--line);text-align:left}
   tbody td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -39,38 +44,53 @@
   .delta{font-weight:700; font-size:0.7em; vertical-align:super; margin-left:4px}
   .delta.plus{color:#0a7d2a}
   .delta.minus{color:#a4002f}
+
+  /* Section ordering: desktop keeps Live first, Converter second.
+     On mobile (<= 640px), show Converter FIRST. */
+  .section-live{ order: 1; }
+  .section-convert{ order: 2; }
+  @media (max-width: 640px){
+    .section-live{ order: 2; }
+    .section-convert{ order: 1; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Zulu (UTC) & US Time Zones</h1>
-  <p class="muted">Live clocks below. Enter a Zulu (UTC) time like <strong>2107Z</strong>, <strong>2107</strong>, or <strong>21:07Z</strong> (24‑hour HHmm). DST handled automatically.</p>
+  <header>
+    <h1>Zulu (UTC) & US Time Zones</h1>
+    <p class="muted">Live clocks below. Enter a Zulu (UTC) time like <strong>2107Z</strong>, <strong>2107</strong>, or <strong>21:07Z</strong> (24‑hour HHmm). DST handled automatically.</p>
+  </header>
 
-  <h2>Live now</h2>
-  <div class="grid" id="liveGrid"></div>
+  <section class="section-convert">
+    <h2>Convert a Zulu (UTC) time</h2>
+    <div class="card">
+      <div class="inputs" style="gap:16px;align-items:flex-end">
+        <div class="stack" style="flex:1 1 280px;min-width:260px">
+          <label class="label" for="utcSimple">UTC time</label>
+          <input id="utcSimple" type="text" inputmode="numeric" placeholder="e.g., 2107Z, 2107, 21:07Z" maxlength="7" />
+          <div class="hint">Accepted: <code>HHmmZ</code>, <code>HHmm</code>, <code>HH:mmZ</code>, <code>HH mm z</code> — spaces/colons ignored.</div>
+        </div>
+        <div class="toggle">
+          <input type="checkbox" id="toggle12"/>
+          <label for="toggle12" class="hint"><strong>12‑hour</strong> results (24‑hour is default)</label>
+        </div>
+        <div><button id="convertBtn">Convert</button></div>
+      </div>
 
-  <h2>Convert a Zulu (UTC) time</h2>
-  <div class="card">
-    <div class="inputs" style="gap:16px;align-items:flex-end">
-      <div class="stack">
-        <label class="label" for="utcSimple">UTC time</label>
-        <input id="utcSimple" type="text" inputmode="numeric" placeholder="e.g., 2107Z, 2107, 21:07Z" maxlength="7" />
-        <div class="hint">Accepted: <code>HHmmZ</code>, <code>HHmm</code>, <code>HH:mmZ</code>, <code>HH mm z</code> — spaces/colons ignored.</div>
-      </div>
-      <div class="toggle">
-        <input type="checkbox" id="toggle12"/>
-        <label for="toggle12" class="hint"><strong>12‑hour</strong> results (24‑hour is default)</label>
-      </div>
-      <div><button id="convertBtn">Convert</button></div>
+      <div id="error" class="err" style="display:none;margin-top:6px;"></div>
+
+      <table>
+        <thead><tr><th>Zone</th><th>Time</th><th>UTC Offset</th></tr></thead>
+        <tbody id="resultBody"></tbody>
+      </table>
     </div>
+  </section>
 
-    <div id="error" class="err" style="display:none;margin-top:6px;"></div>
-
-    <table>
-      <thead><tr><th>Zone</th><th>Time</th><th>UTC Offset</th></tr></thead>
-      <tbody id="resultBody"></tbody>
-    </table>
-  </div>
+  <section class="section-live">
+    <h2>Live now</h2>
+    <div class="grid" id="liveGrid"></div>
+  </section>
 </div>
 
 <script>
@@ -149,7 +169,8 @@ function deltaSup(delta){
 }
 
 function convert(){
-  const timeTxt = document.getElementById('utcSimple').value;
+  const input = document.getElementById('utcSimple');
+  const timeTxt = input.value;
   const outErr = document.getElementById('error');
   const tbody = document.getElementById('resultBody');
   outErr.style.display='none'; outErr.textContent='';
@@ -157,6 +178,10 @@ function convert(){
 
   const {dateUtc, error} = parseSimpleUtc(timeTxt);
   if(error){ outErr.textContent = error; outErr.style.display='block'; return; }
+
+  // Mobile UX: blur input and gently scroll to top so page "resets" any zoom.
+  input.blur();
+  setTimeout(()=>{ window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); }, 50);
 
   ZONES.forEach(z=>{
     const delta = dayDelta(dateUtc, z.tz);
