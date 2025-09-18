@@ -23,30 +23,58 @@
   .time{font-variant-numeric:tabular-nums;font-size:20px}
   .sub{color:var(--muted);font-size:12px}
   .inputs{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
-  input[type="datetime-local"]{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  input[type="text"]{
+    background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:220px
+  }
+  input[type="text"]:focus{border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,174,239,0.18); outline:none}
+  .stack{display:flex;flex-direction:column;gap:6px}
+  .hint{font-size:12px;color:var(--muted)}
+  .toggle{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .toggle input{width:18px;height:18px}
   button{background:var(--blue);color:#002746;border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
   table{width:100%;border-collapse:collapse;margin-top:8px}
   thead th{background:#f1f5fb;color:var(--muted);padding:10px;border-bottom:1px solid var(--line);text-align:left}
-  tbody td{padding:10px;border-bottom:1px solid var(--line)}
+  tbody td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .err{color:#a4002f;font-weight:600}
+  .delta{font-weight:700; font-size:0.7em; vertical-align:super; margin-left:4px}
+  .delta.plus{color:#0a7d2a}
+  .delta.minus{color:#a4002f}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Zulu (UTC) & US Time Zones</h1>
-  <p class="muted">Live clocks below. Enter a Zulu (UTC) time to transpose into each zone. DST handled automatically.</p>
-  <h2>Live now</h2><div class="grid" id="liveGrid"></div>
+  <p class="muted">Live clocks below. Enter a Zulu (UTC) time like <strong>2107Z</strong>, <strong>2107</strong>, or <strong>21:07Z</strong> (24‑hour HHmm). DST handled automatically.</p>
+
+  <h2>Live now</h2>
+  <div class="grid" id="liveGrid"></div>
+
   <h2>Convert a Zulu (UTC) time</h2>
   <div class="card">
-    <div class="inputs">
-      <div><label class="label">UTC (Zulu) date & time</label><br/>
-        <input id="utcInput" type="datetime-local" step="60" />
+    <div class="inputs" style="gap:16px;align-items:flex-end">
+      <div class="stack">
+        <label class="label" for="utcSimple">UTC time</label>
+        <input id="utcSimple" type="text" inputmode="numeric" placeholder="e.g., 2107Z, 2107, 21:07Z" maxlength="7" />
+        <div class="hint">Accepted: <code>HHmmZ</code>, <code>HHmm</code>, <code>HH:mmZ</code>, <code>HH mm z</code> — spaces/colons ignored.</div>
       </div>
-      <div><button id="convertBtn" disabled>Convert</button></div>
+      <div class="toggle">
+        <input type="checkbox" id="toggle12"/>
+        <label for="toggle12" class="hint"><strong>12‑hour</strong> results (24‑hour is default)</label>
+      </div>
+      <div><button id="convertBtn">Convert</button></div>
     </div>
-    <table><thead><tr><th>Zone</th><th>Time</th><th>Offset</th></tr></thead><tbody id="resultBody"></tbody></table>
+
+    <div id="error" class="err" style="display:none;margin-top:6px;"></div>
+
+    <table>
+      <thead><tr><th>Zone</th><th>Time</th><th>UTC Offset</th></tr></thead>
+      <tbody id="resultBody"></tbody>
+    </table>
   </div>
 </div>
+
 <script>
+// Zones
 const ZONES=[
   {label:'Zulu (UTC)',tz:'UTC'},
   {label:'Eastern (ET)',tz:'America/New_York'},
@@ -55,15 +83,97 @@ const ZONES=[
   {label:'Arizona (AZ, no DST)',tz:'America/Phoenix'},
   {label:'Pacific (PT)',tz:'America/Los_Angeles'}
 ];
-const fmt=(d,tz,opt)=>new Intl.DateTimeFormat('en-US',Object.assign({timeZone:tz},opt)).format(d);
-const fmtTime=(d,tz)=>fmt(d,tz,{year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
-const fmtShort=(d,tz)=>fmt(d,tz,{weekday:'short',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true});
-const fmtOffset=(d,tz)=>{const dtf=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'shortOffset'});return dtf.formatToParts(d).find(p=>p.type==='timeZoneName').value;};
-function renderLive(){const now=new Date();const grid=document.getElementById('liveGrid');grid.innerHTML='';ZONES.forEach(z=>{const el=document.createElement('div');el.className='card';el.innerHTML=`<div class="row"><div class="label">${z.label}</div><div class="sub">${fmtOffset(now,z.tz)}</div></div><div class="time">${fmtTime(now,z.tz)}</div>`;grid.appendChild(el);});}
-setInterval(renderLive,1000);renderLive();
-document.getElementById('utcInput').addEventListener('input',e=>{document.getElementById('convertBtn').disabled=!e.target.value;});
-document.getElementById('convertBtn').addEventListener('click',()=>{const val=document.getElementById('utcInput').value;if(!val){return;}const date=new Date(val+'Z');const tbody=document.getElementById('resultBody');tbody.innerHTML='';ZONES.forEach(z=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${z.label}</td><td>${fmtShort(date,z.tz)}</td><td>${fmtOffset(date,z.tz)}</td>`;tbody.appendChild(tr);});});
-(function preset(){const n=new Date();const y=n.getUTCFullYear();const m=String(n.getUTCMonth()+1).padStart(2,'0');const d=String(n.getUTCDate()).padStart(2,'0');const hh=String(n.getUTCHours()).padStart(2,'0');const mm=String(n.getUTCMinutes()).padStart(2,'0');document.getElementById('utcInput').value=`${y}-${m}-${d}T${hh}:${mm}`;document.getElementById('convertBtn').disabled=false;document.getElementById('convertBtn').click();})();
+
+// Formatting helpers
+function makeFormatters(use12){
+  const timeLive = {year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:use12};
+  const timeOnly = {hour:'2-digit',minute:'2-digit',hour12:use12};
+  const fmt = (d,tz,opt)=>new Intl.DateTimeFormat('en-US',Object.assign({timeZone:tz},opt)).format(d);
+  return {
+    live:(d,tz)=>fmt(d,tz,timeLive),
+    time:(d,tz)=>fmt(d,tz,timeOnly),
+    offset:(d,tz)=>{
+      const dtf=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'shortOffset'});
+      return dtf.formatToParts(d).find(p=>p.type==='timeZoneName').value;
+    }
+  };
+}
+let use12Hour=false; // default 24-hour
+let FMT = makeFormatters(use12Hour);
+
+// Live clocks (always show date)
+function renderLive(){
+  const now=new Date();
+  const grid=document.getElementById('liveGrid');
+  grid.innerHTML='';
+  ZONES.forEach(z=>{
+    const el=document.createElement('div');
+    el.className='card';
+    el.innerHTML=`
+      <div class="row"><div class="label">${z.label}</div><div class="sub">${FMT.offset(now,z.tz)}</div></div>
+      <div class="time">${FMT.live(now,z.tz)}</div>`;
+    grid.appendChild(el);
+  });
+}
+setInterval(renderLive,1000); renderLive();
+
+// Parse time text like "2107Z", "21:07Z", "21 07 z", "2107"
+function parseSimpleUtc(hhmmText){
+  if(!hhmmText) return {error:'Enter a UTC time like 2107Z or 21:07Z.'};
+  const raw = hhmmText.trim().toUpperCase().replace(/[\s:]/g,'');
+  const m = raw.match(/^(\d{2})(\d{2})(Z)?$/);
+  if(!m) return {error:'Format must be HHmm or HHmmZ (e.g., 2107Z).'};
+  const hh = parseInt(m[1],10), mm = parseInt(m[2],10);
+  if(hh>23 || mm>59) return {error:'Invalid time (HH 00–23, mm 00–59).'};
+  const now=new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hh, mm, 0));
+  return {dateUtc:d};
+}
+
+// Day delta relative to input UTC date (−1, 0, +1)
+function dayDelta(dateUtc, tz){
+  const parts = new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(dateUtc);
+  let y,m,d; for(const p of parts){ if(p.type==='year') y=+p.value; if(p.type==='month') m=+p.value; if(p.type==='day') d=+p.value; }
+  const utcParts = new Intl.DateTimeFormat('en-CA',{timeZone:'UTC',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(dateUtc);
+  let uy,um,ud; for(const p of utcParts){ if(p.type==='year') uy=+p.value; if(p.type==='month') um=+p.value; if(p.type==='day') ud=+p.value; }
+  const localMid = Date.UTC(y, m-1, d);
+  const utcMid = Date.UTC(uy, um-1, ud);
+  const diffDays = Math.round((localMid - utcMid)/86400000);
+  return Math.max(-1, Math.min(1, diffDays));
+}
+
+function deltaSup(delta){
+  if(delta>0) return '<sup class="delta plus">+1</sup>';
+  if(delta<0) return '<sup class="delta minus">−1</sup>';
+  return ''; // no 0 marker
+}
+
+function convert(){
+  const timeTxt = document.getElementById('utcSimple').value;
+  const outErr = document.getElementById('error');
+  const tbody = document.getElementById('resultBody');
+  outErr.style.display='none'; outErr.textContent='';
+  tbody.innerHTML='';
+
+  const {dateUtc, error} = parseSimpleUtc(timeTxt);
+  if(error){ outErr.textContent = error; outErr.style.display='block'; return; }
+
+  ZONES.forEach(z=>{
+    const delta = dayDelta(dateUtc, z.tz);
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${z.label}</td><td>${FMT.time(dateUtc,z.tz)}${deltaSup(delta)}</td><td>${FMT.offset(dateUtc,z.tz)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('convertBtn').addEventListener('click', convert);
+document.getElementById('utcSimple').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ convert(); } });
+document.getElementById('toggle12').addEventListener('change', (e)=>{
+  use12Hour = e.target.checked; // checked => 12-hour
+  FMT = makeFormatters(use12Hour);
+  renderLive();
+  if(document.getElementById('resultBody').children.length){ convert(); }
+});
 </script>
 </body>
 </html>
